@@ -1,0 +1,107 @@
+Parameters:
+  VpcId:
+    Type: 'AWS::EC2::VPC::Id'
+  Subnets:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+
+Resources:
+  WebServerLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-07d9160fa81ccffb5
+      InstanceType: t2.micro
+      KeyName: Augusto-Devopslabs
+      SecurityGroups:
+        - Ref: HTTPSecurityGroup
+        - Ref: SSHSecurityGroup 
+      UserData: 
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash -xe
+            yum update -y
+            yum install ruby -y
+            wget https://aws-codedeploy-us-west-2.s3.us-west-2.amazonaws.com/latest/install
+            chmod +x ./install
+            ./install auto
+            service codedeploy-agent start
+            yum install httpd -y
+            service httpd start
+            chkconfig httpd on 
+
+  WebServerASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      LaunchConfigurationName: !Ref WebServerLaunchConfig
+      MinSize: '2'
+      MaxSize: '4'
+      AvailabilityZones: 
+          - eu-west-1a
+          - eu-west-1b
+      TargetGroupARNs:
+        - !Ref ALBTargetGroup
+      Tags:
+        - Key: Name
+          Value: WebServers
+          PropagateAtLaunch: true
+        - Key: Projeto
+          Value: Devops-Labs
+          PropagateAtLaunch: true
+
+  HTTPSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: HTTP security group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: SG-WebServerSSH
+        - Key: Projeto
+          Value: Devops-Labs
+
+  SSHSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: SSH security group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: SG-WebServerSSH
+        - Key: Projeto
+          Value: Devops-Labs
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: !Ref Subnets
+      Tags:
+        - Key: Name
+          Value: SG-WebServerSSH
+        - Key: Create
+          Value: CloudFormation
+  ALBListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: '80'
+      Protocol: HTTP
+  ALBTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref VpcId
