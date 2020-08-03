@@ -1,0 +1,45 @@
+Mappings:
+  VPCCIDRBlock:
+    vpc1:
+      cidr: 11.0.0.0/16
+    vpc2:
+      cidr: 12.0.0.0/16
+Resources:
+  VPCStack1:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: >-
+        https://augustoosouza-labs-awsdevopspro.s3.amazonaws.com/Cloudformation-templates/network_stack.yml
+      Parameters:
+        VPCCIDRBlock: !FindInMap 
+          - VPCCIDRBlock
+          - vpc1
+          - cidr
+  VPCStack2:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: >-
+        https://augustoosouza-labs-awsdevopspro.s3.amazonaws.com/Cloudformation-templates/network_stack.yml
+      Parameters:
+        VPCCIDRBlock: !FindInMap 
+          - VPCCIDRBlock
+          - vpc2
+          - cidr
+  SecurityGroupStack1:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: >-
+        https://augustoosouza-labs-awsdevopspro.s3.amazonaws.com/Cloudformation-templates/sg-stack.yml
+      Parameters:
+        VPCID: !GetAtt 
+          - VPCStack1
+          - Outputs.VPCID
+  SecurityGroupStack2:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: >-
+        https://augustoosouza-labs-awsdevopspro.s3.amazonaws.com/Cloudformation-templates/sg-stack.yml
+      Parameters:
+        VPCID: !GetAtt 
+          - VPCStack2
+          - Outputs.VPCID
